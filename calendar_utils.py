@@ -1,7 +1,7 @@
 # calendar_utils.py
 import os
 import datetime
-import pickle
+from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -10,24 +10,53 @@ from config import CALENDAR_ID, HORARIO_ATENCION
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 TOKEN_FILE = "token.json"
 CREDENTIALS_FILE = "credentials.json"
-
-# México ya no tiene horario de verano desde 2022, el offset es fijo
 OFFSET_MEXICO = "-06:00"
 
 
+""" def _preparar_archivos_desde_env():
+
+    if not os.path.exists(CREDENTIALS_FILE):
+        contenido = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        if contenido:
+            with open(CREDENTIALS_FILE, "w") as f:
+                f.write(contenido)
+    if not os.path.exists(TOKEN_FILE):
+        contenido = os.getenv("GOOGLE_TOKEN_JSON")
+        if contenido:
+            with open(TOKEN_FILE, "w") as f:
+                f.write(contenido)"""
+def _preparar_archivos_desde_env():
+    print("[DEBUG] GOOGLE_CREDENTIALS_JSON existe?", os.getenv("GOOGLE_CREDENTIALS_JSON") is not None)
+    print("[DEBUG] GOOGLE_TOKEN_JSON existe?", os.getenv("GOOGLE_TOKEN_JSON") is not None)
+    print("[DEBUG] Variables de entorno disponibles:", [k for k in os.environ.keys() if "GOOGLE" in k or "TELEGRAM" in k])
+    
+    if not os.path.exists(CREDENTIALS_FILE):
+        contenido = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        if contenido:
+            with open(CREDENTIALS_FILE, "w") as f:
+                f.write(contenido)
+    if not os.path.exists(TOKEN_FILE):
+        contenido = os.getenv("GOOGLE_TOKEN_JSON")
+        if contenido:
+            with open(TOKEN_FILE, "w") as f:
+                f.write(contenido)
+
+
 def get_service():
+    _preparar_archivos_desde_env()
     creds = None
     if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "rb") as f:
-            creds = pickle.load(f)
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+        with open(TOKEN_FILE, "w") as f:
+            f.write(creds.to_json())
+
     return build("calendar", "v3", credentials=creds)
 
 
